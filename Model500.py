@@ -51,7 +51,7 @@ class un:
 
 
 class P(un):
-    def __init__(self, x, y, n, ens, QM, wrld):
+    def __init__(self, x, y, n, ens, QM , wrld):
         self.wrld = wrld
         self.QM = QM
         self.ens = ens

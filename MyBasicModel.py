@@ -2,38 +2,138 @@ import enum
 import random
 import time
 from abc import abstractmethod
+import plot_epoch
+
+#Параметры
 leftSensorLenght = 1
 leftMiddleSensorLenght = 3
 middleSensorLenght = 4
 rightMiddleSensorLenght = 3
 rightSensorLenght = 1
+N = 10
+
+class Q:
+    def __init__(self):
+        self.gamma = 0.95
+        self.alpha = 0.05
+        self.state = {}
+
+    def get_wp(self, plr):
+        self.plr = plr
+
+    def run_model(self, silent=1):
+        self.plr.prev_state = self.plr.curr_state[:-2] + (self.plr.dx, self.plr.dy)
+        self.plr.curr_state = tuple(self.plr.get_features(self.plr.x, self.plr.y)) + (self.plr.dx, self.plr.dy)
+
+        r = self.plr.reward
+
+        if self.plr.prev_state not in self.state:
+            self.state[self.plr.prev_state] = 0
+
+        nvec = []
+        for i in self.plr.actions:
+            cstate = self.plr.curr_state[:-2] + (i[0], i[1])
+            if cstate not in self.state:
+                self.state[cstate] = 0
+            nvec.append(self.state[cstate])
+        nvec = max(nvec)
+        self.state[self.plr.prev_state] = self.state[self.plr.prev_state] + self.alpha * (
+                -self.state[self.plr.prev_state] + r + self.gamma * nvec)
 
 class W:
-    def __init__(self,n, map):
-        self.n=n
-        self.P=P(4,2)
+    def __init__(self, map, QModel):
+        self.P=P(7,4,QModel)
         self.map = map
+        self.QM = QModel
+        self.QM.get_wp(self.P)
+
+    def step(self):
+        self.P.move()
+
+    def is_finished(self):
+        px, py = self.P.getxy()
+        end_bool = 0
+        if map[px][py] == 1:
+            end_bool = 1
+        if map[px][py] == 2:
+            end_bool = 2
+        return end_bool
+
+    def get_reward(self, end_bool):
+        if end_bool == 0:
+            self.P.reward = -0.5
+        if end_bool == 1:
+            self.P.reward = -1000
+        if end_bool == 2:
+            self.P.reward = 1000
+
+    def play(self, silent=1, silent_run=1):
+        end_bool = self.is_finished()
+        iter = 0
+        while end_bool == 0:
+            #self.pr(silent)
+            self.step()
+            end_bool = self.is_finished()
+            self.get_reward(end_bool)
+            if silent_run:
+                self.QM.run_model(silent)
+            if not silent:
+                #print('___')
+                time.sleep(0.1)
+            iter = iter + 1
+            #print(iter,end_bool, self.P.getxy())
+        return iter
 
 class un:
     def __init__(self,x,y):
         self.x = x
         self.y = y
+        self.actions = [(0, 0),(0, -1), (-1, 0),
+                        (1, 0), (0, 1)]
     def getxy(self):
         return self.x, self.y
 
 class P(un):
-    def __init__(self, x, y):
+    def __init__(self, x, y, QM):
         self.motionVector = "up"
+        self.sensorController = sensorsController()
+        self.QM = QM
+        self.dx = 0
+        self.dy = 0
+        self.eps = 0.95
+        self.prev_state = tuple(self.get_features(x, y)) + (self.dx, self.dy)
+        self.curr_state = tuple(self.get_features(x, y)) + (self.dx, self.dy)
         un.__init__(self, x, y)
 
+    def get_features(self, x, y):
+        features = []
+        features.append(self.sensorController.leftSensor)
+        features.append(self.sensorController.leftMiddleSensor)
+        features.append(self.sensorController.middleSensor)
+        features.append(self.sensorController.rightMiddleSensor)
+        features.append(self.sensorController.rightSensor)
+        return features
+
     def strtg(self):
-        return 0, 0
+        if random.random() < self.eps:
+            act = random.choice(self.actions)
+        else:
+            name1 = tuple(self.get_features(self.x, self.y))
+            best = [(0, 0), float('-inf')]
+            for i in self.actions:
+                namea = name1 + (i[0], i[1])
+                if namea not in self.QM.state:
+                    self.QM.state[namea] = 0
+                if best[1] < self.QM.state[namea]:
+                    best = [i, self.QM.state[namea]]
+            act = best[0]
+        return act
 
     def move(self):
-        dx, dy = self.strtg()
-        a = self.x + dx
-        b = self.y + dy
-        expr = ((0 <= a < self.n) and (0 <= b < self.n))
+        self.dx, self.dy = self.strtg()
+        a = self.x + self.dx
+        b = self.y + self.dy
+        expr = ((0 <= a < N) and (0 <= b < N))
         if expr:
             self.x = a
             self.y = b
@@ -99,28 +199,58 @@ class sensorsController():
                         if i < rightSensorLenght and map[i - 1][j] == 0:
                             self.rightSensor.distance += 1
             if player.motionVector == "right":
-                if i < leftSensorLenght and map[i - 1][j] == 0:
-                    self.leftSensor.distance += 1
-                if i < leftMiddleSensorLenght and map[i - 1][j + 1] == 0:
-                    self.leftMiddleSensor.distance += 1
-                if i < middleSensorLenght and map[i][j + 1] == 0:
-                    self.middleSensor.distance += 1
-                if i < rightMiddleSensorLenght and map[i + 1][j + 1] == 0:
-                    self.rightMiddleSensor.distance += 1
-                if i < rightSensorLenght and map[i + 1][j] == 0:
-                    self.rightSensor.distance += 1
+                        if i < leftSensorLenght and map[i - 1][j] == 0:
+                            self.leftSensor.distance += 1
+                        if i < leftMiddleSensorLenght and map[i - 1][j + 1] == 0:
+                            self.leftMiddleSensor.distance += 1
+                        if i < middleSensorLenght and map[i][j + 1] == 0:
+                            self.middleSensor.distance += 1
+                        if i < rightMiddleSensorLenght and map[i + 1][j + 1] == 0:
+                            self.rightMiddleSensor.distance += 1
+                        if i < rightSensorLenght and map[i + 1][j] == 0:
+                            self.rightSensor.distance += 1
+
+
 if __name__=="__main__":
     map = []
-    with open('map.txt') as file:
+    with open('C:/Users/Max/Desktop/Materiali s uchebi/Diplom/map1.txt') as file:
         file = file.read()
         q = file.replace(' ', '')
         q = q.replace('\n', '')
-        for i in range(0, 10):
+        for i in range(0, N):
             map.append([])
-            for j in range(0, 10):
-                map[i].append(q[j + i * 10])
+            for j in range(0, N):
+                map[i].append(int(q[j + i * N]))
                 #print(j + i * 10, q[j + i * 10])
-    for i in range(0, 10):
+    for i in range(0, N):
         print(' ')
-        for j in range(0, 10):
+        for j in range(0, N):
             print(map[i][j], end=''),
+    QModel = Q()
+    plot = plot_epoch.epoch_graph()
+    for i in range(1000):
+        wr = W(map, QModel)
+        wr.P.eps = 0.90
+        iter = wr.play(1)
+        if i % 100 == 0:
+            print(i, iter)
+        plot.plt_virt_game(W, QModel)
+
+
+    for i in range(3000):
+        wr = W(map, QModel)
+        wr.P.eps = 0.2
+        iter = wr.play(1)
+        if i % 100 == 0:
+            print(i, iter)
+        plot.plt_virt_game(W, QModel)
+
+    for i in range(1000):
+        wr = W(map, QModel)
+        wr.P.eps = 0.0
+        iter = wr.play(1)
+        if i % 100 == 0:
+            print(i, iter)
+        plot.plt_virt_game(W, QModel)
+
+    plot.plot_graph()
