@@ -71,24 +71,26 @@ class W:
         end_bool = self.is_finished()
         iter = 0
         while end_bool == 0:
+            try:
+                self.P.sensorController.collectData(self.P)
+            except IndexError:
+                print("ERROR: ", self.P.getxy())
             #self.pr(silent)
             self.step()
             end_bool = self.is_finished()
             self.get_reward(end_bool)
             if silent_run:
                 self.QM.run_model(silent)
-            if not silent:
-                #print('___')
-                time.sleep(0.1)
             iter = iter + 1
-            #print(iter,end_bool, self.P.getxy())
+            #if(iter % 100 == 0):
+            print("iterations:", iter,end_bool, self.P.getxy())
         return iter
 
 class un:
     def __init__(self,x,y):
         self.x = x
         self.y = y
-        self.actions = [(0, 0),(0, -1), (-1, 0),
+        self.actions = [(0, -1), (-1, 0),
                         (1, 0), (0, 1)]
     def getxy(self):
         return self.x, self.y
@@ -107,11 +109,11 @@ class P(un):
 
     def get_features(self, x, y):
         features = []
-        features.append(self.sensorController.leftSensor)
-        features.append(self.sensorController.leftMiddleSensor)
-        features.append(self.sensorController.middleSensor)
-        features.append(self.sensorController.rightMiddleSensor)
-        features.append(self.sensorController.rightSensor)
+        features.append(self.sensorController.leftSensor.distance)
+        features.append(self.sensorController.leftMiddleSensor.distance)
+        features.append(self.sensorController.middleSensor.distance)
+        features.append(self.sensorController.rightMiddleSensor.distance)
+        features.append(self.sensorController.rightSensor.distance)
         return features
 
     def strtg(self):
@@ -131,6 +133,14 @@ class P(un):
 
     def move(self):
         self.dx, self.dy = self.strtg()
+        if self.dx == -1 and self.dy == 0:
+            self.motionVector = "up"
+        if self.dx ==  1 and self.dy == 0:
+            self.motionVector = "down"
+        if self.dx ==  0 and self.dy == -1:
+            self.motionVector = "left"
+        if self.dx ==  0 and self.dy == 1:
+            self.motionVector = "right"
         a = self.x + self.dx
         b = self.y + self.dy
         expr = ((0 <= a < N) and (0 <= b < N))
@@ -163,52 +173,52 @@ class sensorsController():
         self.middleSensor.distance = 1
         self.rightMiddleSensor.distance = 1
         self.rightSensor.distance = 1
-        for i in range(0, max(leftMiddleSensorLenght, leftSensorLenght, middleSensorLenght,
-                             rightSensorLenght, rightMiddleSensorLenght)):
-            if player.motionVector == "up":
-                        if i < leftSensorLenght and map[i][j - 1] == 0:
-                            self.leftSensor.distance += 1
-                        if i < leftMiddleSensorLenght and map[i - 1][j - 1] == 0:
-                            self.leftMiddleSensor.distance += 1
-                        if i < middleSensorLenght and map[i - 1][j] == 0:
-                            self.middleSensor.distance += 1
-                        if i < rightMiddleSensorLenght and map[i - 1][j + 1] == 0:
-                            self.rightMiddleSensor.distance += 1
-                        if i < rightSensorLenght and map[i][j + 1] == 0:
-                            self.rightSensor.distance += 1
-            if player.motionVector == "down":
-                        if i < leftSensorLenght and map[i][j + 1] == 0:
-                            self.leftSensor.distance += 1
-                        if i < leftMiddleSensorLenght and map[i + 1][j + 1] == 0:
-                            self.leftMiddleSensor.distance += 1
-                        if i < middleSensorLenght and map[i + 1][j] == 0:
-                            self.middleSensor.distance += 1
-                        if i < rightMiddleSensorLenght and map[i + 1][j - 1] == 0:
-                            self.rightMiddleSensor.distance += 1
-                        if i < rightSensorLenght and map[i][j - 1] == 0:
-                            self.rightSensor.distance += 1
-            if player.motionVector == "left":
-                        if i < leftSensorLenght and map[i + 1][j] == 0:
-                            self.leftSensor.distance += 1
-                        if i < leftMiddleSensorLenght and map[i + 1][j - 1] == 0:
-                            self.leftMiddleSensor.distance += 1
-                        if i < middleSensorLenght and map[i][j - 1] == 0:
-                            self.middleSensor.distance += 1
-                        if i < rightMiddleSensorLenght and map[i - 1][j - 1] == 0:
-                            self.rightMiddleSensor.distance += 1
-                        if i < rightSensorLenght and map[i - 1][j] == 0:
-                            self.rightSensor.distance += 1
-            if player.motionVector == "right":
-                        if i < leftSensorLenght and map[i - 1][j] == 0:
-                            self.leftSensor.distance += 1
-                        if i < leftMiddleSensorLenght and map[i - 1][j + 1] == 0:
-                            self.leftMiddleSensor.distance += 1
-                        if i < middleSensorLenght and map[i][j + 1] == 0:
-                            self.middleSensor.distance += 1
-                        if i < rightMiddleSensorLenght and map[i + 1][j + 1] == 0:
-                            self.rightMiddleSensor.distance += 1
-                        if i < rightSensorLenght and map[i + 1][j] == 0:
-                            self.rightSensor.distance += 1
+        x, y = player.getxy()
+        if player.motionVector == "up":
+            i = 0
+            while i < leftSensorLenght and map[x][y - i] == 0:
+                self.leftSensor.distance += 1
+            if i < leftMiddleSensorLenght and map[x - i][y - i] == 0:
+                self.leftMiddleSensor.distance += 1
+            if i < middleSensorLenght and map[x - i][y] == 0:
+                self.middleSensor.distance += 1
+            if i < rightMiddleSensorLenght and map[x - i][y + i] == 0:
+                self.rightMiddleSensor.distance += 1
+            if i < rightSensorLenght and map[x][y + i] == 0:
+                self.rightSensor.distance += 1
+        if player.motionVector == "down":
+            if i < leftSensorLenght and map[x][y + i] == 0:
+                self.leftSensor.distance += 1
+            if i < leftMiddleSensorLenght and map[x + i][y + i] == 0:
+                self.leftMiddleSensor.distance += 1
+            if i < middleSensorLenght and map[x + i][y] == 0:
+                self.middleSensor.distance += 1
+            if i < rightMiddleSensorLenght and map[x + i][y - i] == 0:
+                self.rightMiddleSensor.distance += 1
+            if i < rightSensorLenght and map[x][y - i] == 0:
+                self.rightSensor.distance += 1
+        if player.motionVector == "left":
+            if i < leftSensorLenght and map[x + i][y] == 0:
+                self.leftSensor.distance += 1
+            if i < leftMiddleSensorLenght and map[x + i][y - i] == 0:
+                self.leftMiddleSensor.distance += 1
+            if i < middleSensorLenght and map[x][y - i] == 0:
+                self.middleSensor.distance += 1
+            if i < rightMiddleSensorLenght and map[x - i][y - i] == 0:
+                self.rightMiddleSensor.distance += 1
+            if i < rightSensorLenght and map[x - i][y] == 0:
+                self.rightSensor.distance += 1
+        if player.motionVector == "right":
+            if i < leftSensorLenght and map[x - i][y] == 0:
+                self.leftSensor.distance += 1
+            if i < leftMiddleSensorLenght and map[x - i][y + i] == 0:
+                self.leftMiddleSensor.distance += 1
+            if i < middleSensorLenght and map[x][y + i] == 0:
+                self.middleSensor.distance += 1
+            if i < rightMiddleSensorLenght and map[x + i][y + i] == 0:
+                self.rightMiddleSensor.distance += 1
+            if i < rightSensorLenght and map[x + i][y] == 0:
+                self.rightSensor.distance += 1
 
 
 if __name__=="__main__":
@@ -237,7 +247,7 @@ if __name__=="__main__":
         plot.plt_virt_game(W, QModel)
 
 
-    for i in range(3000):
+    for i in range(10000):
         wr = W(map, QModel)
         wr.P.eps = 0.2
         iter = wr.play(1)
@@ -247,7 +257,7 @@ if __name__=="__main__":
 
     for i in range(1000):
         wr = W(map, QModel)
-        wr.P.eps = 0.0
+        wr.P.eps = 0.01
         iter = wr.play(1)
         if i % 100 == 0:
             print(i, iter)
