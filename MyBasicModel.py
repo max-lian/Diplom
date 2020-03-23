@@ -133,8 +133,12 @@ class P(un):
         features.append(self.sensorController.middleSensor.distance)
         features.append(self.sensorController.rightMiddleSensor.distance)
         features.append(self.sensorController.rightSensor.distance)
-        features.append(self.targetX - self.x)
-        features.append(self.targetY - self.y)
+        if self.targetX - self.x != 0:
+            features.append((self.targetX - self.x)/abs(self.targetX - self.x))
+        else: features.append(0)
+        if self.targetY - self.y != 0:
+            features.append(self.targetY - self.y/abs(self.targetY - self.y))
+        else: features.append(0)
         return features
 
     def strtg(self):
@@ -214,7 +218,7 @@ class sensorsController():
 
 if __name__=="__main__":
     map = []
-    with open('C:/Users/Max/Desktop/Materiali s uchebi/Diplom/map2.txt') as file:
+    with open('C:/Users/Max/Desktop/Materiali s uchebi/Diplom/map1.txt') as file:
         file = file.read()
         q = file.replace(' ', '')
         q = q.replace('\n', '')
