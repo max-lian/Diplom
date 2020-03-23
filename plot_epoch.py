@@ -16,7 +16,7 @@ class epoch_graph:
         else:
             self.iter_aver.append(sum(self.iter)/len(self.iter))
 
-    def plt_virt_game(self,W,QModel,eps):
+    def plt_virt_game(self,W,QModel):
         wr=W(5,QModel)
         wr.P.eps=0.0
         iter=wr.play(1,0)

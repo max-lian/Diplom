@@ -214,7 +214,7 @@ class W:
 if __name__=="__main__":
     QModel = Q()
     plot = plot_epoch.epoch_graph()
-    for i in range(10000):
+    for i in range(1000):
         wr = W(7, QModel)
         wr.P.eps = 0.90
         iter = wr.play(1)
@@ -223,7 +223,7 @@ if __name__=="__main__":
         plot.plt_virt_game(W, QModel)
 
 
-    for i in range(30000):
+    for i in range(3000):
         wr = W(7, QModel)
         wr.P.eps = 0.2
         iter = wr.play(1)

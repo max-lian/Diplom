@@ -39,10 +39,12 @@ class Q:
         nvec = max(nvec)
         self.state[self.plr.prev_state] = self.state[self.plr.prev_state] + self.alpha * (
                 -self.state[self.plr.prev_state] + r + self.gamma * nvec)
+        #print(self.state[self.plr.prev_state])
+        #time.sleep(1)
 
 class W:
     def __init__(self, map, QModel, eps):
-        self.P=P(7,4,QModel, eps)
+        self.P=P(7,4,QModel, eps, map)
         self.map = map
         self.QM = QModel
         self.QM.get_wp(self.P)
@@ -100,15 +102,27 @@ class un:
         return self.x, self.y
 
 class P(un):
-    def __init__(self, x, y, QM, eps):
+    def __init__(self, x, y, QM, eps, map):
         self.sensorController = sensorsController()
         self.QM = QM
         self.dx = 0
         self.dy = 0
         self.eps = eps
+        self.map = map
+        self.targetX = 0
+        self.targetY = 0
+        self.setTarget()
+        un.__init__(self, x, y)
         self.prev_state = tuple(self.get_features()) + (self.dx, self.dy)
         self.curr_state = tuple(self.get_features()) + (self.dx, self.dy)
-        un.__init__(self, x, y)
+
+    def setTarget(self):
+        for i in range(0, N):
+            for j in range(0, N):
+                if self.map[i][j] == 2:
+                    self.targetX = i
+                    self.targetY = j
+
 
     def get_dxdy(self):
         return self.dx, self.dy
@@ -119,6 +133,8 @@ class P(un):
         features.append(self.sensorController.middleSensor.distance)
         features.append(self.sensorController.rightMiddleSensor.distance)
         features.append(self.sensorController.rightSensor.distance)
+        features.append(self.targetX - self.x)
+        features.append(self.targetY - self.y)
         return features
 
     def strtg(self):
@@ -176,29 +192,29 @@ class sensorsController():
         x, y = player.getxy()
         dx, dy = player.get_dxdy()
         i = 1
-        while i <= leftSensorLenght and map[x - dy*i][y + dx*i] == 0:
+        while i <= leftSensorLenght and map[x - dy*i][y + dx*i] != 1:
             self.leftSensor.distance += 1
             i += 1
         i = 1
-        while i <= leftMiddleSensorLenght and map[x + (dx - dy) * i][y + (dx + dy) * i] == 0:
+        while i <= leftMiddleSensorLenght and map[x + (dx - dy) * i][y + (dx + dy) * i] != 1:
             self.leftMiddleSensor.distance += 1
             i += 1
         i = 1
-        while i <= middleSensorLenght and map[x + dx * i][y + dy * i] == 0:
+        while i <= middleSensorLenght and map[x + dx * i][y + dy * i] != 1:
             self.middleSensor.distance += 1
             i += 1
         i = 1
-        while i <= rightMiddleSensorLenght and map[x + (dx + dy) * i][y + (-dx + dy) * i] == 0:
+        while i <= rightMiddleSensorLenght and map[x + (dx + dy) * i][y + (-dx + dy) * i] != 1:
             self.rightMiddleSensor.distance += 1
             i += 1
         i = 1
-        while i <= rightSensorLenght and map[x + dy * i][y - dx * i] == 0:
+        while i <= rightSensorLenght and map[x + dy * i][y - dx * i] != 1:
             self.rightSensor.distance += 1
             i += 1
 
 if __name__=="__main__":
     map = []
-    with open('C:/Users/Max/Desktop/Materiali s uchebi/Diplom/map1.txt') as file:
+    with open('C:/Users/Max/Desktop/Materiali s uchebi/Diplom/map2.txt') as file:
         file = file.read()
         q = file.replace(' ', '')
         q = q.replace('\n', '')
@@ -213,9 +229,9 @@ if __name__=="__main__":
             print(map[i][j], end=''),
     QModel = Q()
     plot = plot_epoch.epoch_graph()
-    for i in range(1000):
+
+    for i in range(30000):
         wr = W(map, QModel, 0.9)
-        #wr.P.eps = 0.90
         iter = wr.play(1)
         if i % 100 == 0:
             print(i, iter)
@@ -223,19 +239,19 @@ if __name__=="__main__":
         plot.plt_append(iter)
 
 
-    for i in range(5000):
+    for i in range(100000):
         wr = W(map, QModel, 0.2)
-        #wr.P.eps = 0.2
         iter = wr.play(1)
         if i % 100 == 0:
             print(i, iter)
         #plot.plt_virt_game(W, QModel)
         plot.plt_append(iter)
+
     for i in QModel.state:
-        print(i)
+        print(i, QModel.state[i])
+
     for i in range(1000):
         wr = W(map, QModel, 0)
-        #wr.P.eps = 0.01
         iter = wr.play(1)
         print(i, iter)
         #plot.plt_virt_game(W, QModel)
