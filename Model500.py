@@ -230,7 +230,8 @@ if __name__=="__main__":
         if i % 100 == 0:
             print(i)
         plot.plt_virt_game(W, QModel)
-
+    for i in QModel.state:
+        print(i)
     for i in range(10000):
         wr = W(7, QModel)
         wr.P.eps = 0.0
