@@ -70,11 +70,11 @@ class W:
 
     def get_reward(self, end_bool, iteration):
         if end_bool == 0:
-            self.P.reward = -0.1 - 0.01 * iteration  #+ 1/(100 * ((self.P.x - self.P.targetX) ** 2 + (self.P.y - self.P.targetY) ** 2))
+            self.P.reward = -0.1 + 1/(100 * ((self.P.x - self.P.targetX) ** 2 + (self.P.y - self.P.targetY) ** 2))
         if end_bool == 1:
             self.P.reward = -10
         if end_bool == 2:
-            self.P.reward = 8
+            self.P.reward = 10000
 
     def play(self, anim = False):
         end_bool = self.is_finished()
@@ -85,13 +85,22 @@ class W:
         except IndexError:
             print("ERROR: ", self.P.getxy())
         while end_bool == 0:
+            # block for animation
             if anim:
                 ANIM.append([self.P.x, self.P.y])
+                name1 = tuple(self.P.get_features())
+                for i in self.P.actions:
+                    namea = name1 + (i[0], i[1])
+                    if namea not in self.QM.state:
+                        self.QM.state[namea] = 0
+                    ANIM[iter].append(self.QM.state[namea])
+            #exception
             if iter > 10000:
                 print("iterations:", iter, end_bool, "sensors:", self.P.get_features(), "dx,dy", self.P.dx, self.P.dy,
                       "coords:", self.P.getxy())
                 #time.sleep(1)
                 break
+            #main proces
             self.step()
             end_bool = self.is_finished()
             self.get_reward(end_bool, iter)
@@ -271,7 +280,7 @@ if __name__=="__main__":
     QModel = Q()
     plot = plot_epoch.epoch_graph()
 
-    for i in range(10000):
+    for i in range(1000):
         wr = W(map, QModel, 0.9)
         iter = wr.play()
         if i % 100 == 0:
@@ -294,7 +303,7 @@ if __name__=="__main__":
     for i in QModel.state:
         print(i, QModel.state[i])
 
-    for i in range(1000):
+    for i in range(10):
         wr = W(map, QModel, 0.05)
         iter = wr.play()
         if i % 100 == 0:
