@@ -3,6 +3,7 @@ import random
 import time
 from abc import abstractmethod
 import plot_epoch
+import plot_animation
 
 #Параметры
 leftSensorLenght = 1
@@ -10,12 +11,13 @@ leftMiddleSensorLenght = 3
 middleSensorLenght = 4
 rightMiddleSensorLenght = 3
 rightSensorLenght = 1
+backSensorLenght = 1
 N = 20
 
 class Q:
     def __init__(self):
-        self.gamma = 0.5
-        self.alpha = 0.5
+        self.gamma = 0.9
+        self.alpha = 0.1
         self.state = {}
 
     def get_wp(self, plr):
@@ -31,20 +33,20 @@ class Q:
             self.state[self.plr.prev_state] = 0
 
         nvec = []
-        if self.plr.eps == 0:
-            print(self.plr.curr_state[:-2])
-            print("X, Y: ",self.plr.x, self.plr.y, " prev state: ", self.plr.prev_state, self.state[self.plr.prev_state], " stete: ",self.plr.curr_state, self.state[self.plr.curr_state])
+        #if self.plr.eps == 0:
+        #   print(self.plr.curr_state[:-2])
+        #    print("X, Y: ",self.plr.x, self.plr.y, " prev state: ", self.plr.prev_state, self.state[self.plr.prev_state], " stete: ",self.plr.curr_state, self.state[self.plr.curr_state])
         for i in self.plr.actions:
             cstate = self.plr.curr_state[:-2] + (i[0], i[1])
             if cstate not in self.state:
                 self.state[cstate] = 0
             nvec.append(self.state[cstate])
 
-        if self.plr.eps == 0:
-            print(nvec)
+        #if self.plr.eps == 0:
+        #    print(nvec)
         nvec = max(nvec)
-        self.state[self.plr.prev_state] = self.state[self.plr.prev_state] + self.alpha * (
-                -self.state[self.plr.prev_state] + r + self.gamma * nvec)
+        self.state[self.plr.prev_state] = self.state[self.plr.prev_state] + self.alpha * (-self.state[self.plr.prev_state]
+                + r + self.gamma * nvec)
 
 
 class W:
@@ -66,44 +68,48 @@ class W:
             end_bool = 2
         return end_bool
 
-    def get_reward(self, end_bool):
+    def get_reward(self, end_bool, iteration):
         if end_bool == 0:
-            self.P.reward = -1 #+ 1/((self.P.x - self.P.targetX) ** 2 + (self.P.y - self.P.targetY) ** 2)
+            self.P.reward = -0.1 - 0.01 * iteration  #+ 1/(100 * ((self.P.x - self.P.targetX) ** 2 + (self.P.y - self.P.targetY) ** 2))
         if end_bool == 1:
-            self.P.reward = -100
+            self.P.reward = -10
         if end_bool == 2:
-            self.P.reward = 1000
+            self.P.reward = 8
 
-    def play(self, silent=1, silent_run=1):
+    def play(self, anim = False):
         end_bool = self.is_finished()
         iter = 0
-
+        ANIM = []
+        try:
+            self.P.sensorController.collectData(self.P)
+        except IndexError:
+            print("ERROR: ", self.P.getxy())
         while end_bool == 0:
-            try:
-                self.P.sensorController.collectData(self.P)
-            except IndexError:
-                print("ERROR: ", self.P.getxy())
-            if iter > 30000:
+            if anim:
+                ANIM.append([self.P.x, self.P.y])
+            if iter > 10000:
                 print("iterations:", iter, end_bool, "sensors:", self.P.get_features(), "dx,dy", self.P.dx, self.P.dy,
                       "coords:", self.P.getxy())
-                time.sleep(1)
+                #time.sleep(1)
+                break
             self.step()
             end_bool = self.is_finished()
-            self.get_reward(end_bool)
-            if silent_run:
-                self.QM.run_model(silent)
+            self.get_reward(end_bool, iter)
+            self.QM.run_model()
             iter = iter + 1
             #if(iter % 100 == 0):
-        if(self.P.eps == 0):
-            print("end coords:", self.P.getxy())
+        #if(self.P.eps == 0):
+        #    print("end coords:", self.P.getxy())
+        if anim:
+            return ANIM
         return iter
 
 class un:
     def __init__(self,x,y):
         self.x = x
         self.y = y
-        self.actions = [(0, -1), (-1, 0),
-                        (1, 0), (0, 1)]
+        self.actions = [(1, 0), (-1, 0),
+                        (0, 1), (0, -1)]
     def getxy(self):
         return self.x, self.y
 
@@ -141,6 +147,7 @@ class P(un):
         features.append(self.sensorController.middleSensor.distance)
         features.append(self.sensorController.rightMiddleSensor.distance)
         features.append(self.sensorController.rightSensor.distance)
+        features.append(self.sensorController.backSensor.distance)
         if self.targetX - self.x != 0:
             features.append((self.targetX - self.x)/abs(self.targetX - self.x))
         else: features.append(0)
@@ -158,15 +165,15 @@ class P(un):
             best = [(0, 0), float('-inf')]
             for i in self.actions:
                 namea = name1 + (i[0], i[1])
-                if self.eps == 0:
-                    print("namea: ",namea, self.QM.state[namea])
+                #if self.eps == 0:
+                #    print("namea: ",namea, self.QM.state[namea])
                 if namea not in self.QM.state:
                     self.QM.state[namea] = 0
                 if best[1] < self.QM.state[namea]:
                     best = [i, self.QM.state[namea]]
             act = best[0]
-            if self.eps == 0:
-                print("namea act: ", act)
+            #if self.eps == 0:
+            #    print("namea act: ", act)
         return act
 
     def move(self):
@@ -178,7 +185,10 @@ class P(un):
         if expr:
             self.x = a
             self.y = b
-
+            #try:
+            self.sensorController.collectData(self)
+            #except IndexError:
+            #    print("ERROR: ", self.getxy())
 class sensor():
     def __init__(self, lenght):
         self.lenght = lenght
@@ -198,22 +208,27 @@ class sensorsController():
         self.middleSensor = sensor(middleSensorLenght)
         self.rightMiddleSensor = sensor(rightMiddleSensorLenght)
         self.rightSensor = sensor(rightSensorLenght)
-
+        self.backSensor = sensor(backSensorLenght)
     def collectData(self, player : P):
         self.leftSensor.distance = 1
         self.leftMiddleSensor.distance = 1
         self.middleSensor.distance = 1
         self.rightMiddleSensor.distance = 1
         self.rightSensor.distance = 1
+        self.backSensor.distance = 1
         x, y = player.getxy()
         dx, dy = player.get_dxdy()
-        i = 1
+        #print("collectData: ", x, y, dx, dy)
+
         if x == 0 or x == N - 1 or y == 0 or y == N - 1:
             self.leftSensor.distance = 0
             self.leftMiddleSensor.distance = 0
             self.middleSensor.distance = 0
             self.rightMiddleSensor.distance = 0
             self.rightSensor.distance = 0
+            self.backSensorLenght = 0
+            return 0
+        i = 1
         while i <= leftSensorLenght and map[x - dy*i][y + dx*i] != 1:
             self.leftSensor.distance += 1
             i += 1
@@ -233,10 +248,14 @@ class sensorsController():
         while i <= rightSensorLenght and map[x + dy * i][y - dx * i] != 1:
             self.rightSensor.distance += 1
             i += 1
+        i = 1
+        while i <= backSensorLenght and map[x - dx * i][y - dy * i] != 1:
+            self.backSensor.distance += 1
+            i += 1
 
 if __name__=="__main__":
     map = []
-    with open('map1.txt') as file:
+    with open('map2.txt') as file:
         file = file.read()
         q = file.replace(' ', '')
         q = q.replace('\n', '')
@@ -252,18 +271,21 @@ if __name__=="__main__":
     QModel = Q()
     plot = plot_epoch.epoch_graph()
 
-    for i in range(200):
+    for i in range(10000):
         wr = W(map, QModel, 0.9)
-        iter = wr.play(1)
+        iter = wr.play()
         if i % 100 == 0:
             print(i, iter)
         #plot.plt_virt_game(W, QModel)
         plot.plt_append(iter)
 
 
-    for i in range(1000):
-        wr = W(map, QModel, 0.2)
-        iter = wr.play(1)
+    for i in range(200000):
+        if i % 2 == 0:
+            wr = W(map, QModel, 0.2)
+        else:
+            wr = W(map, QModel, 0.9)
+        iter = wr.play()
         if i % 100 == 0:
             print(i, iter)
         #plot.plt_virt_game(W, QModel)
@@ -272,11 +294,15 @@ if __name__=="__main__":
     for i in QModel.state:
         print(i, QModel.state[i])
 
-    for i in range(10):
-        wr = W(map, QModel, 0)
-        iter = wr.play(1)
-        print(i, iter)
+    for i in range(1000):
+        wr = W(map, QModel, 0.05)
+        iter = wr.play()
+        if i % 100 == 0:
+            print(i, iter)
         #plot.plt_virt_game(W, QModel)
         plot.plt_append(iter)
-
+    animation = plot_animation.moveAnimation()
+    wr = W(map, QModel, 0)
+    anim = wr.play(True)
+    animation.animate(map, anim)
     plot.plot_graph()
