@@ -10,19 +10,19 @@ leftMiddleSensorLenght = 3
 middleSensorLenght = 4
 rightMiddleSensorLenght = 3
 rightSensorLenght = 1
-N = 10
+N = 20
 
 class Q:
     def __init__(self):
-        self.gamma = 0.95
-        self.alpha = 0.05
+        self.gamma = 0.5
+        self.alpha = 0.5
         self.state = {}
 
     def get_wp(self, plr):
         self.plr = plr
 
     def run_model(self, silent=1):
-        self.plr.prev_state = self.plr.curr_state[:-2] + (self.plr.dx, self.plr.dy)
+        #self.plr.prev_state = self.plr.curr_state
         self.plr.curr_state = tuple(self.plr.get_features()) + (self.plr.dx, self.plr.dy)
 
         r = self.plr.reward
@@ -31,20 +31,25 @@ class Q:
             self.state[self.plr.prev_state] = 0
 
         nvec = []
+        if self.plr.eps == 0:
+            print(self.plr.curr_state[:-2])
+            print("X, Y: ",self.plr.x, self.plr.y, " prev state: ", self.plr.prev_state, self.state[self.plr.prev_state], " stete: ",self.plr.curr_state, self.state[self.plr.curr_state])
         for i in self.plr.actions:
             cstate = self.plr.curr_state[:-2] + (i[0], i[1])
             if cstate not in self.state:
                 self.state[cstate] = 0
             nvec.append(self.state[cstate])
+
+        if self.plr.eps == 0:
+            print(nvec)
         nvec = max(nvec)
         self.state[self.plr.prev_state] = self.state[self.plr.prev_state] + self.alpha * (
                 -self.state[self.plr.prev_state] + r + self.gamma * nvec)
-        #print(self.state[self.plr.prev_state])
-        #time.sleep(1)
+
 
 class W:
     def __init__(self, map, QModel, eps):
-        self.P=P(7,4,QModel, eps, map)
+        self.P=P(2,16,QModel, eps, map)
         self.map = map
         self.QM = QModel
         self.QM.get_wp(self.P)
@@ -63,21 +68,22 @@ class W:
 
     def get_reward(self, end_bool):
         if end_bool == 0:
-            self.P.reward = -0.5
+            self.P.reward = -1 #+ 1/((self.P.x - self.P.targetX) ** 2 + (self.P.y - self.P.targetY) ** 2)
         if end_bool == 1:
-            self.P.reward = -1000
+            self.P.reward = -100
         if end_bool == 2:
             self.P.reward = 1000
 
     def play(self, silent=1, silent_run=1):
         end_bool = self.is_finished()
         iter = 0
+
         while end_bool == 0:
             try:
                 self.P.sensorController.collectData(self.P)
             except IndexError:
                 print("ERROR: ", self.P.getxy())
-            if iter > 3000:
+            if iter > 30000:
                 print("iterations:", iter, end_bool, "sensors:", self.P.get_features(), "dx,dy", self.P.dx, self.P.dy,
                       "coords:", self.P.getxy())
                 time.sleep(1)
@@ -105,8 +111,10 @@ class P(un):
     def __init__(self, x, y, QM, eps, map):
         self.sensorController = sensorsController()
         self.QM = QM
-        self.dx = 0
+        self.dx = -1
         self.dy = 0
+        self.lastdx = -1
+        self.lastdy = 0
         self.eps = eps
         self.map = map
         self.targetX = 0
@@ -137,7 +145,7 @@ class P(un):
             features.append((self.targetX - self.x)/abs(self.targetX - self.x))
         else: features.append(0)
         if self.targetY - self.y != 0:
-            features.append(self.targetY - self.y/abs(self.targetY - self.y))
+            features.append((self.targetY - self.y)/abs(self.targetY - self.y))
         else: features.append(0)
         return features
 
@@ -145,22 +153,25 @@ class P(un):
         randomnum = random.random()
         if  randomnum < self.eps:
             act = random.choice(self.actions)
-            #print("random", randomnum, self.eps)
         else:
             name1 = tuple(self.get_features())
             best = [(0, 0), float('-inf')]
             for i in self.actions:
                 namea = name1 + (i[0], i[1])
+                if self.eps == 0:
+                    print("namea: ",namea, self.QM.state[namea])
                 if namea not in self.QM.state:
                     self.QM.state[namea] = 0
                 if best[1] < self.QM.state[namea]:
                     best = [i, self.QM.state[namea]]
             act = best[0]
-            #print("not random", randomnum, self.eps)
+            if self.eps == 0:
+                print("namea act: ", act)
         return act
 
     def move(self):
         self.dx, self.dy = self.strtg()
+        self.prev_state = tuple(self.get_features()) + (self.dx, self.dy)
         a = self.x + self.dx
         b = self.y + self.dy
         expr = ((0 <= a < N) and (0 <= b < N))
@@ -187,6 +198,7 @@ class sensorsController():
         self.middleSensor = sensor(middleSensorLenght)
         self.rightMiddleSensor = sensor(rightMiddleSensorLenght)
         self.rightSensor = sensor(rightSensorLenght)
+
     def collectData(self, player : P):
         self.leftSensor.distance = 1
         self.leftMiddleSensor.distance = 1
@@ -196,6 +208,12 @@ class sensorsController():
         x, y = player.getxy()
         dx, dy = player.get_dxdy()
         i = 1
+        if x == 0 or x == N - 1 or y == 0 or y == N - 1:
+            self.leftSensor.distance = 0
+            self.leftMiddleSensor.distance = 0
+            self.middleSensor.distance = 0
+            self.rightMiddleSensor.distance = 0
+            self.rightSensor.distance = 0
         while i <= leftSensorLenght and map[x - dy*i][y + dx*i] != 1:
             self.leftSensor.distance += 1
             i += 1
@@ -218,7 +236,7 @@ class sensorsController():
 
 if __name__=="__main__":
     map = []
-    with open('C:/Users/Max/Desktop/Materiali s uchebi/Diplom/map1.txt') as file:
+    with open('map1.txt') as file:
         file = file.read()
         q = file.replace(' ', '')
         q = q.replace('\n', '')
@@ -234,7 +252,7 @@ if __name__=="__main__":
     QModel = Q()
     plot = plot_epoch.epoch_graph()
 
-    for i in range(30000):
+    for i in range(200):
         wr = W(map, QModel, 0.9)
         iter = wr.play(1)
         if i % 100 == 0:
@@ -243,7 +261,7 @@ if __name__=="__main__":
         plot.plt_append(iter)
 
 
-    for i in range(100000):
+    for i in range(1000):
         wr = W(map, QModel, 0.2)
         iter = wr.play(1)
         if i % 100 == 0:
@@ -254,7 +272,7 @@ if __name__=="__main__":
     for i in QModel.state:
         print(i, QModel.state[i])
 
-    for i in range(1000):
+    for i in range(10):
         wr = W(map, QModel, 0)
         iter = wr.play(1)
         print(i, iter)
