@@ -160,19 +160,8 @@ class P(un):
         return self.dx, self.dy
     def get_features(self):
         features = []
-        features.append(self.sensorController.leftSensor.distance)
-        features.append(self.sensorController.leftMiddleSensor.distance)
-        features.append(self.sensorController.middleSensor.distance)
-        features.append(self.sensorController.rightMiddleSensor.distance)
-        features.append(self.sensorController.rightSensor.distance)
-        #features.append(self.sensorController.backSensor.distance)
-        if self.targetX - self.x != 0:
-            features.append((self.targetX - self.x)/abs(self.targetX - self.x))
-        else: features.append(0)
-        if self.targetY - self.y != 0:
-            features.append((self.targetY - self.y)/abs(self.targetY - self.y))
-        else: features.append(0)
-        features.append(((self.x - self.targetX) ** 2 + (self.y - self.targetY) ** 2)**(1/2))
+        features.append(self.x)
+        features.append(self.y)
         return features
 
     def strtg(self):
@@ -292,7 +281,7 @@ if __name__=="__main__":
     QModel = Q()
     plot = plot_epoch.epoch_graph()
 
-    for i in range(200000):
+    for i in range(20000):
         if i % 2 == 0:
             wr = W(map, QModel, 0.2)
         else:
@@ -302,7 +291,7 @@ if __name__=="__main__":
             print(i, iter)
         #plot.plt_virt_game(W, QModel)
         plot.plt_append(iter)
-    for i in range(1000000):
+    for i in range(500000):
         if i % 2 == 0:
             wr = W(map, QModel, 0.2, True)
         else:

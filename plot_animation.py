@@ -42,6 +42,6 @@ class moveAnimation:
         left = ax.text(-0.4, 0.5, '', transform=ax.transAxes)
         matrice = ax.matshow(ANIM[0])
         ani = animation.FuncAnimation(fig, update, frames=range1, interval=1000)
-        ani.save('coordmap.mp4', writer=writer)
+        ani.save('map5(extrahard)sensors.mp4', writer=writer)
         plt.show()
         plt.show(block=True)
