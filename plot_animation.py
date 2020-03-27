@@ -4,7 +4,7 @@ import numpy as np
 import copy
 import MyBasicModel
 Writer = animation.writers['ffmpeg']
-writer = Writer(fps=3, metadata=dict(artist='M.Yakovlev'), bitrate=1800)
+writer = Writer(fps=5, metadata=dict(artist='M.Yakovlev'), bitrate=1800)
 class moveAnimation:
     def makeMoveAnimation(self, map, QM):
         wr = MyBasicModel.W(map, QM, 0)
@@ -13,7 +13,7 @@ class moveAnimation:
 
     def animate(self, map, ANIM):
         print("anim begin")
-        range1 = min(300, len(ANIM))
+        range1 = min(1000, len(ANIM))
         DOWN= []
         UP = []
         RIGHT = []
@@ -42,6 +42,6 @@ class moveAnimation:
         left = ax.text(-0.4, 0.5, '', transform=ax.transAxes)
         matrice = ax.matshow(ANIM[0])
         ani = animation.FuncAnimation(fig, update, frames=range1, interval=1000)
-        ani.save('testNEW.mp4', writer=writer)
+        ani.save('coordmap.mp4', writer=writer)
         plt.show()
         plt.show(block=True)
